@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>個人proxy交換所</title>
+    <title>完全匿名チャット</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 20px; background: #f0f2f5; color: #333; }
@@ -25,7 +25,18 @@
 </head>
 <body>
 <div class="container">
-    <h1>個人proxy交換所</h1>
+    <h1>完全匿名チャットサイト</h1></h1>
+
+    <div class="section" style="text-align: center; background: #fff8e1; border: 1px solid #ffe082; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+        <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #e65100; font-weight: bold;">🎁 開発者を応援する（匿名で送れます）</p>
+        <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: #666; line-height: 1.4;">
+            サイトを気に入ったら、Amazonギフトカード（15円〜）でジュースをおごっていただけると励みになります！<br>
+            宛先メールアドレス：<strong style="color: #007bff; background: #fff; padding: 2px 5px; border: 1px solid #ccc; border-radius: 3px;">kaminoeee@gmail.com</strong>
+        </p>
+        <a href="https://www.amazon.co.jp/dp/B004N3APGO" target="_blank" style="display: block; background: #ff9900; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+            Amazonでギフトカードを送る ↗
+        </a>
+    </div>
     
     <div class="section" id="login-area">
         <label for="room-id-input">共通の部屋番号（好きな文字や数字）:</label>
@@ -46,7 +57,7 @@
 <script>
     let peer = null;
     let conn = null;
-    let myRole = ""; // "host" または "guest"
+    let myRole = ""; 
 
     const roomIdInput = document.getElementById('room-id-input');
     const joinBtn = document.getElementById('join-btn');
@@ -68,32 +79,25 @@
         roomIdInput.disabled = true;
         statusEl.innerText = '部屋にアクセス中...';
 
-        // 部屋番号を元に、まずは自分が「ホスト（親）」としてPeerを作成してみる
-        // PeerIDの衝突を防ぎつつ部屋を固定するため、部屋番号をそのままIDにする
         myRole = "host";
         peer = new Peer(roomValue);
 
-        // ホストとして無事に部屋を作れた場合
         peer.on('open', (id) => {
             statusEl.innerText = `部屋「${roomValue}」を作成しました。相手の入室を待っています...`;
             statusEl.style.background = "#e3f2fd";
         });
 
-        // 自分がホストの状態で、相手（ゲスト）が入室してきたとき
         peer.on('connection', (connection) => {
-            if (conn) return; // 1対1専用
+            if (conn) return; 
             conn = connection;
             startChat();
         });
 
-        // もしすでに同じ部屋番号（ホスト）が存在してエラーになった場合、自分は「ゲスト（子）」として入る
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
-                // すでにホストがいるので、自分はゲストとして接続を試みる
                 myRole = "guest";
-                peer.destroy(); // 一度ホストとしてのpeerを破棄
+                peer.destroy(); 
 
-                // ランダムな別のIDでPeerを再作成し、ホストに接続しにいく
                 peer = new Peer();
                 peer.on('open', () => {
                     statusEl.innerText = `部屋「${roomValue}」が見つかりました。接続中...`;
@@ -108,9 +112,7 @@
         });
     });
 
-    // チャット開始のセットアップ
     function startChat() {
-        // チャット画面を表示する
         loginArea.style.display = "none";
         chatArea.style.display = "block";
         
@@ -120,12 +122,10 @@
             appendMessage('● 相手と接続されました！チャットを始められます。', 'system');
         });
 
-        // メッセージ受信
         conn.on('data', (data) => {
             appendMessage(data, 'peer');
         });
 
-        // 相手の退出・回線落ち検知
         conn.on('close', () => { handleDisconnect(); });
         conn.on('error', () => { handleDisconnect(); });
     }
