@@ -12,18 +12,18 @@
         .site-desc { font-size: 0.85rem; color: #666; line-height: 1.5; margin-bottom: 15px; }
         .section { margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 5px; border: 1px solid #ddd; }
         label { font-size: 0.9rem; font-weight: bold; display: block; margin-bottom: 5px; }
-        input[type="text"] { width: calc(100% - 22px); padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        textarea { width: calc(100% - 22px); padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; resize: none; font-family: sans-serif; }
         button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; margin-top: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        #chat-box { height: 250px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; background: #fff; margin-bottom: 10px; border-radius: 4px; }
-        .msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 4px; width: fit-content; max-width: 80%; word-break: break-all; font-size: 15px; }
+        #chat-box { height: 250px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; background: #fff; margin-bottom: 10px; border-radius: 4px; contain: content; }
+        
+        /* 💡 white-space: pre-wrap; を追加して、改行をそのまま綺麗に表示する */
+        .msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 4px; width: fit-content; max-width: 80%; word-break: break-all; font-size: 15px; white-space: pre-wrap; }
         .msg.me { background: #dcf8c6; margin-left: auto; text-align: right; }
-        .msg.peer { background: #eceff1; }
+        .msg.peer { background: #eceff1; text-align: left; }
         .msg.system { background: #fee; color: #c00; font-size: 0.85rem; margin: 10px auto; text-align: center; width: 90%; border: 1px dashed #fcc; border-radius: 4px; padding: 5px; }
         .status { font-size: 0.9rem; color: #666; text-align: center; margin: 10px 0; font-weight: bold; padding: 5px; background: #eec; border-radius: 4px; }
-        
-        /* 💡 コピー成功時に画面下部に出る通知（トースト）のスタイル */
         .toast { display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     </style>
 </head>
@@ -39,7 +39,7 @@
     <div class="section" style="text-align: center; background: #fff8e1; border: 1px solid #ffe082; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
         <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #e65100; font-weight: bold;">🎁 開発者を応援する（匿名で送れます）</p>
         <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: #666; line-height: 1.4;">
-            サイトを気に入ったら、Amazonギフトカード（15円〜）でジュースをおごっていただけると励みになります！<br>
+            サイトを気に入ったら、Amazonギフトカード（15円〜）でジュースをおおごっていただけると励みになります！<br>
             宛先メールアドレス：<strong id="target-email" style="color: #007bff; background: #fff; padding: 2px 5px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;" title="クリックでコピー">kaminoeee@gmail.com</strong>
         </p>
         <button id="amajif-btn" style="background: #ff9900; color: white; margin-top: 0;">
@@ -56,9 +56,9 @@
     
     <div id="chat-area" style="display: none;">
         <div id="chat-box"></div>
-        <div style="display: flex; gap: 5px;">
-            <input type="text" id="message-input" placeholder="メッセージを入力...">
-            <button id="send-btn" style="width: auto; margin: 0;">送信</button>
+        <div style="display: flex; gap: 5px; align-items: flex-end;">
+            <textarea id="message-input" rows="1" placeholder="メッセージを入力..."></textarea>
+            <button id="send-btn" style="width: auto; margin: 0; padding: 8px 15px; white-space: nowrap;">送信</button>
         </div>
     </div>
 </div>
@@ -79,38 +79,36 @@
     const messageInput = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
     
-    // アマギフ投げ銭用の要素を取得
     const amajifBtn = document.getElementById('amajif-btn');
     const targetEmail = document.getElementById('target-email');
     const toastMsg = document.getElementById('toast-msg');
 
-    // 💡 コピー＆リンク移動の処理
+    // 安定して動作する文字列・バイナリ相互変換
+    function stringToBuffer(str) {
+        return new TextEncoder().encode(str);
+    }
+    function bufferToString(buf) {
+        return new TextDecoder().decode(buf);
+    }
+
     function copyAndOpen(event) {
         const emailText = "kaminoeee@gmail.com";
-        
-        // クリップボードにメールアドレスを書き込み
         navigator.clipboard.writeText(emailText).then(() => {
-            // コピー成功メッセージを2秒間表示
             toastMsg.style.display = "block";
             setTimeout(() => { toastMsg.style.display = "none"; }, 2000);
-            
-            // オレンジ色の「ボタン」が押された場合のみ、Amazonのギフト券購入ページを別タブで開く
             if (event.currentTarget === amajifBtn) {
                 window.open("https://www.amazon.co.jp/dp/B004N3APGO", "_blank");
             }
         }).catch(err => {
-            // セキュリティ等でブラウザがコピーを拒否した場合でもAmazonのページだけは開く
             if (event.currentTarget === amajifBtn) {
                 window.open("https://www.amazon.co.jp/dp/B004N3APGO", "_blank");
             }
         });
     }
 
-    // イベントリスナーの登録
     amajifBtn.addEventListener('click', copyAndOpen);
     targetEmail.addEventListener('click', copyAndOpen);
 
-    // --- チャットロジック（発火バグ対策済み） ---
     joinBtn.addEventListener('click', () => {
         const roomValue = roomIdInput.value.trim();
         if (!roomValue) {
@@ -144,7 +142,7 @@
                 peer = new Peer(); 
                 peer.on('open', () => {
                     statusEl.innerText = `部屋「${roomValue}」が見つかりました。接続中...`;
-                    conn = peer.connect(roomValue);
+                    conn = peer.connect(roomValue, { serialization: 'none' });
                     setupConnection(); 
                 });
             } else {
@@ -159,7 +157,8 @@
         if (!conn) return;
 
         conn.on('data', (data) => {
-            appendMessage(data, 'peer');
+            const str = bufferToString(data);
+            appendMessage(str, 'peer');
         });
 
         conn.on('close', handleDisconnect);
@@ -193,21 +192,41 @@
         const msg = messageInput.value.trim();
         if (!msg || !conn || !conn.open) return; 
 
-        conn.send(msg);
+        const packet = stringToBuffer(msg);
+        conn.send(packet);
+        
         appendMessage(msg, 'me');
         messageInput.value = '';
+        messageInput.style.height = 'auto'; // 入力欄の高さをリセット
     }
 
     function appendMessage(text, sender) {
         const msgDiv = document.createElement('div');
         msgDiv.classList.add('msg', sender);
-        msgDiv.innerText = text;
+        // 💡 textContentを使うことで、改行コードや特殊文字を安全かつ高速にそのまま反映
+        msgDiv.textContent = text; 
         chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        if (chatBox.scrollHeight - chatBox.scrollTop < 600) {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     }
 
+    // 💡 テキストエリアの自動改行・自動高さ調整・Enter送信の制御
+    messageInput.addEventListener('input', () => {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 100) + 'px'; // 最大100pxまで自動で伸びる
+    });
+
+    messageInput.addEventListener('keydown', (e) => {
+        // Enterキーのみで送信、Shift + Enter で改行できるようにする
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // 本来の改行処理を止める
+            sendMessage();
+        }
+    });
+
     sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 </script>
 </body>
 </html>
