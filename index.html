@@ -22,6 +22,9 @@
         .msg.peer { background: #eceff1; }
         .msg.system { background: #fee; color: #c00; font-size: 0.85rem; margin: 10px auto; text-align: center; width: 90%; border: 1px dashed #fcc; border-radius: 4px; padding: 5px; }
         .status { font-size: 0.9rem; color: #666; text-align: center; margin: 10px 0; font-weight: bold; padding: 5px; background: #eec; border-radius: 4px; }
+        
+        /* 💡 コピー成功時に画面下部に出る通知（トースト）のスタイル */
+        .toast { display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -37,11 +40,11 @@
         <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #e65100; font-weight: bold;">🎁 開発者を応援する（匿名で送れます）</p>
         <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: #666; line-height: 1.4;">
             サイトを気に入ったら、Amazonギフトカード（15円〜）でジュースをおごっていただけると励みになります！<br>
-            宛先メールアドレス：<strong style="color: #007bff; background: #fff; padding: 2px 5px; border: 1px solid #ccc; border-radius: 3px;">kaminoeee@gmail.com</strong>
+            宛先メールアドレス：<strong id="target-email" style="color: #007bff; background: #fff; padding: 2px 5px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;" title="クリックでコピー">kaminoeee@gmail.com</strong>
         </p>
-        <a href="https://www.amazon.co.jp/dp/B004N3APGO?extMail=kaminoeee@gmail.com" target="_blank" style="display: block; background: #ff9900; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
-            Amazonでギフトカードを送る ↗
-        </a>
+        <button id="amajif-btn" style="background: #ff9900; color: white; margin-top: 0;">
+            アドレスをコピーしてAmazonを開く ↗
+        </button>
     </div>
     
     <div class="section" id="login-area">
@@ -60,6 +63,8 @@
     </div>
 </div>
 
+<div id="toast-msg" class="toast">メールアドレスをコピーしました！</div>
+
 <script>
     let peer = null;
     let conn = null;
@@ -73,7 +78,39 @@
     const chatBox = document.getElementById('chat-box');
     const messageInput = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
+    
+    // アマギフ投げ銭用の要素を取得
+    const amajifBtn = document.getElementById('amajif-btn');
+    const targetEmail = document.getElementById('target-email');
+    const toastMsg = document.getElementById('toast-msg');
 
+    // 💡 コピー＆リンク移動の処理
+    function copyAndOpen(event) {
+        const emailText = "kaminoeee@gmail.com";
+        
+        // クリップボードにメールアドレスを書き込み
+        navigator.clipboard.writeText(emailText).then(() => {
+            // コピー成功メッセージを2秒間表示
+            toastMsg.style.display = "block";
+            setTimeout(() => { toastMsg.style.display = "none"; }, 2000);
+            
+            // オレンジ色の「ボタン」が押された場合のみ、Amazonのギフト券購入ページを別タブで開く
+            if (event.currentTarget === amajifBtn) {
+                window.open("https://www.amazon.co.jp/dp/B004N3APGO", "_blank");
+            }
+        }).catch(err => {
+            // セキュリティ等でブラウザがコピーを拒否した場合でもAmazonのページだけは開く
+            if (event.currentTarget === amajifBtn) {
+                window.open("https://www.amazon.co.jp/dp/B004N3APGO", "_blank");
+            }
+        });
+    }
+
+    // イベントリスナーの登録
+    amajifBtn.addEventListener('click', copyAndOpen);
+    targetEmail.addEventListener('click', copyAndOpen);
+
+    // --- チャットロジック（発火バグ対策済み） ---
     joinBtn.addEventListener('click', () => {
         const roomValue = roomIdInput.value.trim();
         if (!roomValue) {
@@ -93,24 +130,20 @@
             statusEl.style.background = "#e3f2fd";
         });
 
-        // Host側がGuestからの接続を受け取ったとき
         peer.on('connection', (connection) => {
-            if (conn) return; // すでに誰かと接続中なら無視
+            if (conn) return; 
             conn = connection;
             setupConnection();
         });
 
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
-                // 部屋番号が既に使われていれば、Guestとして再接続を試みる
                 myRole = "guest";
                 peer.destroy(); 
 
-                peer = new Peer(); // ランダムなIDで自分のPeerを作成
+                peer = new Peer(); 
                 peer.on('open', () => {
                     statusEl.innerText = `部屋「${roomValue}」が見つかりました。接続中...`;
-                    
-                    // 【発火対策】インスタンス生成直後に最速でイベントをバインド
                     conn = peer.connect(roomValue);
                     setupConnection(); 
                 });
@@ -122,20 +155,16 @@
         });
     });
 
-    // 接続オブジェクト(conn)に対してイベントリスナーを安全にバインドする
     function setupConnection() {
         if (!conn) return;
 
-        // メッセージ受信
         conn.on('data', (data) => {
             appendMessage(data, 'peer');
         });
 
-        // 切断・エラー処理
         conn.on('close', handleDisconnect);
         conn.on('error', handleDisconnect);
 
-        // 【発火対策】すでにオープンしているか、オープンした瞬間に画面を切り替える二重チェック
         if (conn.open) {
             onConnectionReady();
         } else {
@@ -145,7 +174,6 @@
         }
     }
 
-    // 通信の準備が完全に整ったときの処理
     function onConnectionReady() {
         if (loginArea.style.display !== "none") {
             loginArea.style.display = "none";
@@ -161,7 +189,6 @@
         appendMessage('× 相手が退出したか、回線が切断されました。もう一度やり直すにはページを再読み込みしてください。', 'system');
     }
 
-    // メッセージ送信
     function sendMessage() {
         const msg = messageInput.value.trim();
         if (!msg || !conn || !conn.open) return; 
