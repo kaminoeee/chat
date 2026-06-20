@@ -39,7 +39,7 @@
             サイトを気に入ったら、Amazonギフトカード（15円〜）でジュースをおごっていただけると励みになります！<br>
             宛先メールアドレス：<strong style="color: #007bff; background: #fff; padding: 2px 5px; border: 1px solid #ccc; border-radius: 3px;">kaminoeee@gmail.com</strong>
         </p>
-        <a href="https://www.amazon.co.jp/dp/B004N3APGO" target="_blank" style="display: block; background: #ff9900; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+        <a href="https://www.amazon.co.jp/dp/B004N3APGO?extMail=kaminoeee@gmail.com" target="_blank" style="display: block; background: #ff9900; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
             Amazonでギフトカードを送る ↗
         </a>
     </div>
@@ -110,8 +110,7 @@
                 peer.on('open', () => {
                     statusEl.innerText = `部屋「${roomValue}」が見つかりました。接続中...`;
                     
-                    // 【発火対策】
-                    // 接続インスタンスを生成後、1ミリ秒の猶予も与えずすぐに setupConnection() へ渡してバインドする
+                    // 【発火対策】インスタンス生成直後に最速でイベントをバインド
                     conn = peer.connect(roomValue);
                     setupConnection(); 
                 });
@@ -136,12 +135,10 @@
         conn.on('close', handleDisconnect);
         conn.on('error', handleDisconnect);
 
-        // 【発火対策】
-        // バインドした時点で爆速でopen済みになっていないか状態をチェックする
+        // 【発火対策】すでにオープンしているか、オープンした瞬間に画面を切り替える二重チェック
         if (conn.open) {
             onConnectionReady();
         } else {
-            // まだオープンしていなければ、通常通りopenイベントを待ち受ける
             conn.on('open', () => {
                 onConnectionReady();
             });
@@ -150,7 +147,6 @@
 
     // 通信の準備が完全に整ったときの処理
     function onConnectionReady() {
-        // まだチャット画面が表示されていなければ切り替える
         if (loginArea.style.display !== "none") {
             loginArea.style.display = "none";
             chatArea.style.display = "block";
@@ -165,9 +161,10 @@
         appendMessage('× 相手が退出したか、回線が切断されました。もう一度やり直すにはページを再読み込みしてください。', 'system');
     }
 
+    // メッセージ送信
     function sendMessage() {
         const msg = messageInput.value.trim();
-        if (!msg || !conn || !conn.open) return; // 接続が開いているかチェック
+        if (!msg || !conn || !conn.open) return; 
 
         conn.send(msg);
         appendMessage(msg, 'me');
