@@ -9,6 +9,7 @@
         body { font-family: sans-serif; margin: 20px; background: #f0f2f5; color: #333; }
         .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h1 { font-size: 1.3rem; text-align: center; margin-bottom: 20px; }
+        .site-desc { font-size: 0.85rem; color: #666; line-height: 1.5; margin-bottom: 15px; }
         .section { margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 5px; border: 1px solid #ddd; }
         label { font-size: 0.9rem; font-weight: bold; display: block; margin-bottom: 5px; }
         input[type="text"] { width: calc(100% - 22px); padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
@@ -108,8 +109,11 @@
                 peer = new Peer(); // ランダムなIDで自分のPeerを作成
                 peer.on('open', () => {
                     statusEl.innerText = `部屋「${roomValue}」が見つかりました。接続中...`;
+                    
+                    // 【発火対策】
+                    // 接続インスタンスを生成後、1ミリ秒の猶予も与えずすぐに setupConnection() へ渡してバインドする
                     conn = peer.connect(roomValue);
-                    setupConnection(); // 接続直後にリスナーを登録
+                    setupConnection(); 
                 });
             } else {
                 statusEl.innerText = 'エラーが発生しました。リロードしてやり直してください。';
@@ -121,6 +125,8 @@
 
     // 接続オブジェクト(conn)に対してイベントリスナーを安全にバインドする
     function setupConnection() {
+        if (!conn) return;
+
         // メッセージ受信
         conn.on('data', (data) => {
             appendMessage(data, 'peer');
@@ -130,10 +136,12 @@
         conn.on('close', handleDisconnect);
         conn.on('error', handleDisconnect);
 
-        // すでにオープンしているか、オープンした瞬間に画面を切り替える
+        // 【発火対策】
+        // バインドした時点で爆速でopen済みになっていないか状態をチェックする
         if (conn.open) {
             onConnectionReady();
         } else {
+            // まだオープンしていなければ、通常通りopenイベントを待ち受ける
             conn.on('open', () => {
                 onConnectionReady();
             });
