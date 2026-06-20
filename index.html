@@ -25,7 +25,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>完全匿名チャットサイト</h1></h1>
+    <h1>完全匿名チャットサイト</h1>
 
     <div class="site-desc">
         登録不要・完全無料で使える完全匿名プライベートチャットツールです。<br>
@@ -92,22 +92,24 @@
             statusEl.style.background = "#e3f2fd";
         });
 
+        // Host側がGuestからの接続を受け取ったとき
         peer.on('connection', (connection) => {
-            if (conn) return; 
+            if (conn) return; // すでに誰かと接続中なら無視
             conn = connection;
-            startChat();
+            setupConnection();
         });
 
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
+                // 部屋番号が既に使われていれば、Guestとして再接続を試みる
                 myRole = "guest";
                 peer.destroy(); 
 
-                peer = new Peer();
+                peer = new Peer(); // ランダムなIDで自分のPeerを作成
                 peer.on('open', () => {
                     statusEl.innerText = `部屋「${roomValue}」が見つかりました。接続中...`;
                     conn = peer.connect(roomValue);
-                    startChat();
+                    setupConnection(); // 接続直後にリスナーを登録
                 });
             } else {
                 statusEl.innerText = 'エラーが発生しました。リロードしてやり直してください。';
@@ -117,22 +119,36 @@
         });
     });
 
-    function startChat() {
-        loginArea.style.display = "none";
-        chatArea.style.display = "block";
-        
-        appendMessage('ーー 部屋に入室しました ーー', 'system');
-
-        conn.on('open', () => {
-            appendMessage('● 相手と接続されました！チャットを始められます。', 'system');
-        });
-
+    // 接続オブジェクト(conn)に対してイベントリスナーを安全にバインドする
+    function setupConnection() {
+        // メッセージ受信
         conn.on('data', (data) => {
             appendMessage(data, 'peer');
         });
 
-        conn.on('close', () => { handleDisconnect(); });
-        conn.on('error', () => { handleDisconnect(); });
+        // 切断・エラー処理
+        conn.on('close', handleDisconnect);
+        conn.on('error', handleDisconnect);
+
+        // すでにオープンしているか、オープンした瞬間に画面を切り替える
+        if (conn.open) {
+            onConnectionReady();
+        } else {
+            conn.on('open', () => {
+                onConnectionReady();
+            });
+        }
+    }
+
+    // 通信の準備が完全に整ったときの処理
+    function onConnectionReady() {
+        // まだチャット画面が表示されていなければ切り替える
+        if (loginArea.style.display !== "none") {
+            loginArea.style.display = "none";
+            chatArea.style.display = "block";
+            appendMessage('ーー 部屋に入室しました ーー', 'system');
+            appendMessage('● 相手と接続されました！チャットを始められます。', 'system');
+        }
     }
 
     function handleDisconnect() {
@@ -143,7 +159,7 @@
 
     function sendMessage() {
         const msg = messageInput.value.trim();
-        if (!msg || !conn) return;
+        if (!msg || !conn || !conn.open) return; // 接続が開いているかチェック
 
         conn.send(msg);
         appendMessage(msg, 'me');
